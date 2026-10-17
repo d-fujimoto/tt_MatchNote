@@ -1,0 +1,1174 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f4f5f1">
+  <meta name="description" content="卓球の試合スコアと振り返りを記録し、Markdownで保存できます。">
+  <title>RALLY / 卓球試合ノート</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #f4f5f1;
+      --surface: #ffffff;
+      --ink: #202421;
+      --muted: #707873;
+      --line: #dfe3de;
+      --red: #e54835;
+      --red-soft: #fff0ed;
+      --green: #167e62;
+      --green-soft: #e9f5ef;
+      --blue: #315acb;
+      --shadow: 0 14px 42px rgba(28, 38, 32, .07);
+      font-family: "Avenir Next", "Yu Gothic UI", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
+      font-synthesis: none;
+      text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      color: var(--ink);
+      background-color: var(--paper);
+      background-image: radial-gradient(#dfe3de 0.7px, transparent 0.7px);
+      background-size: 18px 18px;
+    }
+
+    button, input, textarea { font: inherit; }
+    button { -webkit-tap-highlight-color: transparent; }
+
+    .shell {
+      width: min(1160px, calc(100% - 48px));
+      margin: 0 auto;
+      padding: 28px 0 64px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-mark {
+      display: grid;
+      width: 38px;
+      aspect-ratio: 1;
+      place-items: center;
+      border-radius: 12px;
+      background: var(--ink);
+      color: white;
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: 0;
+    }
+    .brand-name { margin: 0; font-size: 15px; font-weight: 800; letter-spacing: .02em; }
+    .brand-caption { margin: 3px 0 0; color: var(--muted); font-size: 11px; }
+    .local-note { color: var(--muted); font-size: 12px; }
+
+    .page-heading {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 30px 0 24px;
+    }
+    .eyebrow { margin: 0 0 7px; color: var(--green); font-size: 11px; font-weight: 800; letter-spacing: .08em; }
+    h1 { margin: 0; font-size: clamp(24px, 4vw, 34px); line-height: 1.25; letter-spacing: 0; }
+    .heading-note { margin: 8px 0 0; color: var(--muted); font-size: 13px; }
+    .reset-button {
+      flex: 0 0 auto;
+      padding: 10px 13px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+      color: #414944;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .reset-button:hover { border-color: #abb4ad; }
+    .match-manager {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 20px;
+      padding: 11px 12px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: rgba(255, 255, 255, .88);
+    }
+    .match-tabs { display: flex; min-width: 0; gap: 6px; overflow-x: auto; scrollbar-width: thin; }
+    .match-tab {
+      flex: 0 0 auto;
+      max-width: 180px;
+      padding: 8px 11px;
+      overflow: hidden;
+      border: 1px solid transparent;
+      border-radius: 7px;
+      background: transparent;
+      color: #626b65;
+      font-size: 11px;
+      font-weight: 700;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+    .match-tab[aria-selected="true"] { border-color: #cfe4d9; background: var(--green-soft); color: #12664f; }
+    .match-actions { display: flex; flex: 0 0 auto; gap: 7px; }
+    .match-action {
+      min-height: 36px;
+      padding: 0 11px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: white;
+      color: #49524c;
+      font-size: 11px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .match-action.primary { border-color: var(--ink); background: var(--ink); color: white; }
+    .match-action:hover { border-color: var(--green); }
+    .match-action.danger { color: #a83225; }
+    .match-action:disabled { opacity: .45; cursor: not-allowed; }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1.4fr) minmax(310px, .8fr);
+      gap: 22px;
+      align-items: start;
+    }
+    .main-column { display: grid; gap: 18px; min-width: 0; }
+    .panel {
+      min-width: 0;
+      border: 1px solid rgba(215, 221, 215, .9);
+      border-radius: 12px;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+    .panel-heading {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 0;
+      font-size: 14px;
+      font-weight: 800;
+    }
+    .section-index {
+      display: grid;
+      width: 23px;
+      aspect-ratio: 1;
+      place-items: center;
+      border-radius: 7px;
+      background: var(--green-soft);
+      color: var(--green);
+      font-size: 10px;
+      font-weight: 800;
+    }
+    .match-panel { padding: 22px; }
+    .players {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 34px minmax(0, 1fr);
+      gap: 12px;
+      align-items: end;
+      margin-top: 20px;
+    }
+    .partner-players[hidden] { display: none; }
+    .field-label { display: block; margin-bottom: 8px; color: #525c56; font-size: 11px; font-weight: 700; }
+    .text-input, .profile-select, .profile-other, .score-input, .note-input {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      outline: none;
+      background: #fff;
+      color: var(--ink);
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .text-input { height: 44px; padding: 0 12px; font-size: 14px; }
+    .text-input:focus, .profile-select:focus, .profile-other:focus, .score-input:focus, .note-input:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(22, 126, 98, .12); }
+    .versus { align-self: center; padding-top: 17px; color: #a2aaa4; font-size: 10px; font-weight: 800; text-align: center; }
+    .profile-settings { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 19px; padding-top: 17px; border-top: 1px solid #edf0ec; }
+    .profile-group { min-width: 0; margin: 0; padding: 0; border: 0; }
+    .profile-group + .profile-group { padding-left: 18px; border-left: 1px solid #edf0ec; }
+    .profile-group[hidden] { display: none; }
+    .profile-heading { margin: 0 0 12px; font-size: 12px; font-weight: 800; }
+    .profile-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .profile-field { display: grid; gap: 6px; min-width: 0; }
+    .profile-label { color: #626b65; font-size: 10px; font-weight: 700; }
+    .profile-select, .profile-other { width: 100%; height: 38px; padding: 0 9px; font-size: 12px; }
+    .profile-rubbers { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .profile-other-wrap[hidden] { display: none; }
+    .match-settings { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 21px; padding-top: 17px; border-top: 1px solid #edf0ec; }
+    .match-settings .field-label { margin: 0; }
+    .match-settings + .match-settings { margin-top: 14px; padding-top: 14px; }
+    .set-options { display: flex; gap: 5px; padding: 4px; border-radius: 9px; background: #f1f3f0; }
+    .set-option { position: relative; cursor: pointer; }
+    .set-option input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+    .set-option span { display: block; min-width: 44px; padding: 8px 9px; border-radius: 6px; color: #68716b; font-size: 11px; font-weight: 700; text-align: center; }
+    .set-option input:checked + span { background: white; color: var(--ink); box-shadow: 0 1px 4px rgba(30, 40, 32, .12); }
+    .set-option input:focus-visible + span { outline: 2px solid var(--green); outline-offset: 2px; }
+    .match-rule { margin: 12px 0 0; color: var(--muted); font-size: 11px; }
+
+    .scores-panel { padding: 22px; }
+    .score-subtitle { margin: 6px 0 0 33px; color: var(--muted); font-size: 11px; }
+    .set-list { display: grid; gap: 9px; margin-top: 19px; }
+    .set-row {
+      display: grid;
+      grid-template-columns: 46px minmax(0, 1fr) 14px minmax(0, 1fr);
+      gap: 9px;
+      align-items: center;
+      min-height: 76px;
+      padding: 11px 13px;
+      border: 1px solid #e9ece8;
+      border-radius: 9px;
+      background: #fff;
+      transition: background .15s, border-color .15s, opacity .15s;
+    }
+    .set-row.is-active { border-color: #abd7c7; background: #fbfefc; }
+    .set-row.is-complete { border-color: #d8e9df; background: #f5faf6; }
+    .set-row.is-disabled { opacity: .48; }
+    .set-number { color: #89928c; font-size: 11px; font-weight: 800; }
+    .score-side { display: grid; grid-template-columns: minmax(0, 1fr) 48px; gap: 7px; align-items: center; min-width: 0; }
+    .winner-button {
+      overflow: hidden;
+      min-width: 0;
+      padding: 9px 8px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: #fff;
+      color: #58615b;
+      font-size: 12px;
+      font-weight: 700;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+    .winner-button[aria-pressed="true"] { border-color: var(--green); background: var(--green-soft); color: #12664f; }
+    .winner-button:disabled { cursor: not-allowed; }
+    .score-dash { color: #8a928c; font-size: 13px; font-weight: 700; text-align: center; }
+    .winner-score { display: grid; height: 40px; place-items: center; border-radius: 8px; background: #f1f3f0; color: #89928c; font-size: 15px; font-weight: 800; }
+    .winner-score.has-value { background: var(--green-soft); color: var(--green); }
+    .winner-score[hidden], .score-input[hidden] { display: none; }
+    .score-input { height: 40px; padding: 0 7px; font-size: 15px; font-weight: 800; text-align: center; }
+    .score-input:disabled { background: #f5f6f4; color: #8a928c; }
+    .score-status { min-height: 17px; margin: 11px 0 0; color: var(--muted); font-size: 11px; }
+    .score-status.is-win { color: var(--green); font-weight: 700; }
+    .score-status.is-loss { color: var(--red); font-weight: 700; }
+    .score-hint { margin: 8px 0 0; color: #8a928c; font-size: 10px; }
+
+    .reflection-panel { padding: 22px; }
+    .reflection-fields { display: grid; gap: 15px; margin-top: 18px; }
+    .note-input { display: block; min-height: 80px; padding: 10px 11px; resize: vertical; font-size: 13px; line-height: 1.65; }
+    .note-input::placeholder { color: #a1a9a3; }
+
+    .output-panel { position: sticky; top: 18px; overflow: hidden; }
+    .output-head { display: flex; align-items: start; justify-content: space-between; gap: 12px; padding: 21px 20px 16px; border-bottom: 1px solid #edf0ec; }
+    .output-title { margin: 0; font-size: 14px; font-weight: 800; }
+    .output-caption { margin: 5px 0 0; color: var(--muted); font-size: 11px; }
+    .ready-indicator { flex: 0 0 auto; width: 8px; aspect-ratio: 1; margin-top: 5px; border-radius: 50%; background: #c8cec9; }
+    .ready-indicator.is-ready { background: var(--green); box-shadow: 0 0 0 4px var(--green-soft); }
+    .output-body { padding: 16px 20px 20px; }
+    .output-preview {
+      display: block;
+      width: 100%;
+      min-height: 290px;
+      padding: 12px;
+      border: 1px solid #e7ebe7;
+      border-radius: 8px;
+      background: #f8f9f7;
+      color: #545d57;
+      font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+      font-size: 10px;
+      line-height: 1.7;
+      resize: vertical;
+    }
+    .output-preview::placeholder { color: #969f99; font-family: inherit; }
+    .generate-button, .utility-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      border: 0;
+      border-radius: 8px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: background .15s, transform .15s;
+    }
+    .generate-button { width: 100%; min-height: 45px; margin-top: 11px; background: var(--ink); color: white; font-size: 13px; }
+    .generate-button:hover:not(:disabled) { background: var(--green); }
+    .generate-button:active:not(:disabled), .utility-button:active { transform: translateY(1px); }
+    .generate-button:disabled { background: #d9ddda; color: #7d867f; cursor: not-allowed; }
+    .output-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+    .utility-button { min-height: 39px; border: 1px solid var(--line); background: white; color: #49524c; font-size: 11px; }
+    .utility-button:hover:not(:disabled) { border-color: #abb4ad; background: #f8f9f7; }
+    .utility-button:disabled { color: #a1a9a3; cursor: not-allowed; }
+    .storage-note { margin: 13px 0 0; color: #8a928c; font-size: 10px; line-height: 1.6; }
+    .toast { position: fixed; z-index: 5; right: max(18px, env(safe-area-inset-right)); bottom: max(18px, env(safe-area-inset-bottom)); padding: 11px 15px; border-radius: 8px; background: var(--ink); color: white; font-size: 12px; box-shadow: var(--shadow); animation: appear .18s ease-out; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+    @keyframes appear { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+    @media (max-width: 820px) {
+      .workspace { grid-template-columns: minmax(0, 1fr); }
+      .output-panel { position: static; }
+      .output-preview { min-height: 250px; }
+    }
+    @media (max-width: 520px) {
+      .shell { width: min(100% - 28px, 440px); padding: 17px 0 42px; }
+      .topbar { padding-bottom: 17px; }
+      .brand-mark { width: 34px; border-radius: 10px; }
+      .local-note { max-width: 120px; font-size: 10px; text-align: right; }
+      .page-heading { align-items: center; padding: 24px 0 19px; }
+      h1 { font-size: 24px; }
+      .heading-note { font-size: 11px; }
+      .reset-button { padding: 9px 10px; font-size: 10px; }
+      .match-manager { align-items: stretch; flex-direction: column; gap: 8px; margin-bottom: 14px; padding: 9px; }
+      .match-actions { display: grid; grid-template-columns: 1fr 1fr 1fr; }
+      .match-action { min-width: 0; padding: 0 6px; font-size: 10px; }
+      .workspace { gap: 14px; }
+      .main-column { gap: 13px; }
+      .match-panel, .scores-panel, .reflection-panel { padding: 17px 15px; }
+      .players { grid-template-columns: minmax(0, 1fr) 24px minmax(0, 1fr); gap: 7px; margin-top: 17px; }
+      .text-input { height: 42px; padding: 0 9px; font-size: 13px; }
+      .profile-settings { grid-template-columns: 1fr; gap: 15px; }
+      .profile-group + .profile-group { padding: 14px 0 0; border-top: 1px solid #edf0ec; border-left: 0; }
+      .profile-fields { gap: 9px; }
+      .match-settings { align-items: start; flex-direction: column; gap: 10px; }
+      .set-options { width: 100%; }
+      .set-option { flex: 1; }
+      .set-option span { min-width: 0; padding: 8px 5px; }
+      .set-row { grid-template-columns: 33px minmax(0, 1fr) 12px minmax(0, 1fr); gap: 5px; min-height: 66px; padding: 8px 7px; }
+      .score-side { grid-template-columns: minmax(0, 1fr) 38px; gap: 4px; }
+      .winner-button { padding: 8px 3px; font-size: 9px; }
+      .winner-score, .score-input { height: 38px; padding: 0 3px; }
+      .output-head { padding: 17px 15px 14px; }
+      .output-body { padding: 13px 15px 16px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">R</span>
+        <div>
+          <p class="brand-name">RALLY <span style="color:#a0a8a1;font-weight:500">/</span> 試合ノート</p>
+          <p class="brand-caption">TABLE TENNIS · MATCH LOG</p>
+        </div>
+      </div>
+      <span class="local-note">入力内容はこの端末に保存されます</span>
+    </header>
+
+    <div class="page-heading">
+      <div>
+        <p class="eyebrow">MATCH RECORD</p>
+        <h1>試合を記録する</h1>
+        <p class="heading-note">スコアと気づきを、次の一球につなげる。</p>
+      </div>
+      <button class="reset-button" id="resetButton" type="button">記録をリセット</button>
+    </div>
+
+    <section class="match-manager" aria-label="試合の管理">
+      <nav class="match-tabs" id="matchTabs" role="tablist" aria-label="試合一覧"></nav>
+      <div class="match-actions">
+        <button class="match-action" id="saveMatchButton" type="button">一時保存</button>
+        <button class="match-action primary" id="newMatchButton" type="button">＋ 試合を追加</button>
+        <button class="match-action danger" id="deleteMatchButton" type="button" disabled>この試合を削除</button>
+      </div>
+    </section>
+
+    <div class="workspace">
+      <div class="main-column">
+        <section class="panel match-panel" aria-labelledby="matchHeading">
+          <h2 class="panel-heading" id="matchHeading"><span class="section-index">01</span>対戦情報</h2>
+          <div class="players">
+            <label>
+                <span class="field-label" id="playerNameLabel">自分</span>
+              <input class="text-input" id="playerName" name="playerName" value="藤本大助" maxlength="40" autocomplete="name">
+            </label>
+            <span class="versus" aria-hidden="true">VS</span>
+            <label>
+                <span class="field-label" id="opponentNameLabel">対戦者</span>
+              <input class="text-input" id="opponentName" name="opponentName" placeholder="名前を入力" maxlength="40" autocomplete="off">
+            </label>
+          </div>
+          <div class="players partner-players" id="partnerPlayers" hidden>
+            <label>
+              <span class="field-label" id="playerPartnerLabel">自分のペア</span>
+              <input class="text-input" id="playerPartnerName" maxlength="40" autocomplete="off">
+            </label>
+            <span class="versus" aria-hidden="true">＋</span>
+            <label>
+              <span class="field-label" id="opponentPartnerLabel">対戦者のペア</span>
+              <input class="text-input" id="opponentPartnerName" maxlength="40" autocomplete="off">
+            </label>
+          </div>
+          <div class="match-settings">
+            <span class="field-label" id="matchTypeLabel">試合種目</span>
+            <div class="set-options" role="radiogroup" aria-labelledby="matchTypeLabel">
+              <label class="set-option"><input type="radio" name="matchType" value="singles" checked><span>シングルス</span></label>
+              <label class="set-option"><input type="radio" name="matchType" value="doubles"><span>ダブルス</span></label>
+            </div>
+          </div>
+          <div class="profile-settings" id="profileSettings" aria-label="選手情報"></div>
+          <div class="match-settings">
+            <span class="field-label" id="matchLengthLabel">試合形式</span>
+            <div class="set-options" role="radiogroup" aria-labelledby="matchLengthLabel">
+              <label class="set-option"><input type="radio" name="matchLength" value="1"><span>1セット</span></label>
+              <label class="set-option"><input type="radio" name="matchLength" value="3" checked><span>3セット</span></label>
+              <label class="set-option"><input type="radio" name="matchLength" value="5"><span>5セット</span></label>
+              <label class="set-option"><input type="radio" name="matchLength" value="7"><span>7セット</span></label>
+            </div>
+          </div>
+          <div class="match-settings">
+            <span class="field-label" id="sideOrderLabel">左右の並び</span>
+            <div class="set-options" role="radiogroup" aria-labelledby="sideOrderLabel">
+              <label class="set-option"><input type="radio" name="playerSide" value="left" checked><span>自分が左</span></label>
+              <label class="set-option"><input type="radio" name="playerSide" value="right"><span>自分が右</span></label>
+            </div>
+          </div>
+          <p class="match-rule">選んだセット数の過半数を先取すると勝利です。</p>
+        </section>
+
+        <section class="panel scores-panel" aria-labelledby="scoresHeading">
+          <h2 class="panel-heading" id="scoresHeading"><span class="section-index">02</span>セットスコア</h2>
+          <p class="score-subtitle">勝者の名前を選び、敗者側の点数を入力してください。</p>
+          <div class="set-list" id="setList"></div>
+          <p class="score-status" id="scoreStatus" aria-live="polite">最初のセットを入力してください。</p>
+          <p class="score-hint">11点未満なら勝者は11点、10点以上なら2点差まで自動計算します。</p>
+        </section>
+
+        <section class="panel reflection-panel" aria-labelledby="reflectionHeading">
+          <h2 class="panel-heading" id="reflectionHeading"><span class="section-index">03</span>試合の振り返り</h2>
+          <div class="reflection-fields">
+            <label>
+              <span class="field-label">試合の感想</span>
+              <textarea class="note-input" id="impression" placeholder="試合全体を振り返る"></textarea>
+            </label>
+            <label>
+              <span class="field-label">良かった点</span>
+              <textarea class="note-input" id="goodPoints" placeholder="続けたいプレーや判断"></textarea>
+            </label>
+            <label>
+              <span class="field-label">悪かった点</span>
+              <textarea class="note-input" id="badPoints" placeholder="次に改善したいこと"></textarea>
+            </label>
+          </div>
+        </section>
+      </div>
+
+      <aside class="panel output-panel" aria-labelledby="outputHeading">
+        <div class="output-head">
+          <div>
+            <h2 class="output-title" id="outputHeading">Markdown出力</h2>
+            <p class="output-caption" id="outputCaption">全試合の勝敗が決まると、まとめて生成できます。</p>
+          </div>
+          <span class="ready-indicator" id="readyIndicator" aria-hidden="true"></span>
+        </div>
+        <div class="output-body">
+          <label class="sr-only" for="outputPreview">生成されたMarkdown</label>
+          <textarea class="output-preview" id="outputPreview" readonly placeholder="試合の入力が完了したら、ここにMarkdownが表示されます。"></textarea>
+          <button class="generate-button" id="generateButton" type="button" disabled>全試合のMarkdownを生成</button>
+          <div class="output-actions">
+            <button class="utility-button" id="copyButton" type="button" disabled>テキストをコピー</button>
+            <button class="utility-button" id="downloadButton" type="button" disabled>.mdで保存</button>
+          </div>
+          <p class="storage-note">入力途中の内容はブラウザに自動保存されます。共有端末では記録のリセットをお忘れなく。</p>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <script>
+    const STORAGE_KEY = "rally-match-note-v1";
+    const DEFAULT_PLAYER = "藤本大助";
+    const PROFILE_DEFAULTS_VERSION = 2;
+    const elements = {
+      player: document.querySelector("#playerName"),
+      opponent: document.querySelector("#opponentName"),
+      playerPartner: document.querySelector("#playerPartnerName"),
+      opponentPartner: document.querySelector("#opponentPartnerName"),
+      playerNameLabel: document.querySelector("#playerNameLabel"),
+      opponentNameLabel: document.querySelector("#opponentNameLabel"),
+      playerPartnerLabel: document.querySelector("#playerPartnerLabel"),
+      opponentPartnerLabel: document.querySelector("#opponentPartnerLabel"),
+      partnerPlayers: document.querySelector("#partnerPlayers"),
+      profileSettings: document.querySelector("#profileSettings"),
+      matchTabs: document.querySelector("#matchTabs"),
+      saveMatch: document.querySelector("#saveMatchButton"),
+      newMatch: document.querySelector("#newMatchButton"),
+      deleteMatch: document.querySelector("#deleteMatchButton"),
+      setList: document.querySelector("#setList"),
+      status: document.querySelector("#scoreStatus"),
+      output: document.querySelector("#outputPreview"),
+      generate: document.querySelector("#generateButton"),
+      outputCaption: document.querySelector("#outputCaption"),
+      copy: document.querySelector("#copyButton"),
+      download: document.querySelector("#downloadButton"),
+      ready: document.querySelector("#readyIndicator"),
+      reset: document.querySelector("#resetButton")
+    };
+    const noteFields = ["impression", "goodPoints", "badPoints"];
+    const rubberOptions = ["裏", "表", "粒", "アンチ"];
+    let matchStore = loadMatchStore();
+    let activeMatchId = matchStore.activeMatchId;
+    let state = matchStore.matches.find(match => match.id === activeMatchId)?.data || defaultState();
+    let nextMatchNumber = matchStore.matches.length + 1;
+    let generatedText = "";
+    let toastTimer;
+    let deleteConfirmTimer;
+
+    function defaultState() {
+      return {
+        player: DEFAULT_PLAYER,
+        opponent: "",
+        playerPartner: "",
+        opponentPartner: "",
+        matchType: "singles",
+        matchLength: 3,
+        playerSide: "left",
+        profileDefaultsVersion: PROFILE_DEFAULTS_VERSION,
+        profiles: {
+          player: { hand: "left", racket: "shake", racketOther: "", forehand: "裏", backhand: "表" },
+          opponent: { hand: "right", racket: "shake", racketOther: "", forehand: "裏", backhand: "裏" },
+          playerPartner: { hand: "", racket: "", racketOther: "", forehand: "", backhand: "" },
+          opponentPartner: { hand: "", racket: "", racketOther: "", forehand: "", backhand: "" }
+        },
+        sets: Array.from({ length: 7 }, () => ({ winner: "", loserScore: "" })),
+        impression: "",
+        goodPoints: "",
+        badPoints: ""
+      };
+    }
+
+    function normalizeState(saved) {
+      try {
+        if (!saved || typeof saved !== "object") return defaultState();
+        const initial = defaultState();
+        const matchLength = [1, 3, 5, 7].includes(Number(saved.matchLength)) ? Number(saved.matchLength) : 3;
+        const sets = initial.sets.map((set, index) => ({
+          winner: ["me", "opponent"].includes(saved.sets?.[index]?.winner) ? saved.sets[index].winner : "",
+          loserScore: typeof saved.sets?.[index]?.loserScore === "string" || typeof saved.sets?.[index]?.loserScore === "number" ? String(saved.sets[index].loserScore) : ""
+        }));
+        const migratePlayerDefaults = saved.profileDefaultsVersion !== PROFILE_DEFAULTS_VERSION && saved.player === DEFAULT_PLAYER;
+        const profiles = Object.fromEntries(["player", "opponent", "playerPartner", "opponentPartner"].map(key => {
+          const savedProfile = saved.profiles?.[key] || {};
+          const oldRubbers = Array.isArray(savedProfile.rubbers) ? savedProfile.rubbers.filter(value => rubberOptions.includes(value)) : [];
+          const defaults = initial.profiles[key];
+          const isUnconfiguredOpponent = key === "opponent" && !savedProfile.hand && !savedProfile.racket && !savedProfile.racketOther && !savedProfile.forehand && !savedProfile.backhand && oldRubbers.length === 0;
+          const applyDefaults = (migratePlayerDefaults && key === "player") || (saved.profileDefaultsVersion !== PROFILE_DEFAULTS_VERSION && isUnconfiguredOpponent);
+          return [key, {
+            hand: ["left", "right"].includes(savedProfile.hand) ? savedProfile.hand : applyDefaults ? defaults.hand : "",
+            racket: ["pen", "shake", "other"].includes(savedProfile.racket) ? savedProfile.racket : applyDefaults ? defaults.racket : "",
+            racketOther: typeof savedProfile.racketOther === "string" ? savedProfile.racketOther : "",
+            forehand: rubberOptions.includes(savedProfile.forehand) ? savedProfile.forehand : oldRubbers[0] || (applyDefaults ? defaults.forehand : ""),
+            backhand: rubberOptions.includes(savedProfile.backhand) ? savedProfile.backhand : oldRubbers[1] || (applyDefaults ? defaults.backhand : "")
+          }];
+        }));
+        return {
+          ...initial,
+          player: typeof saved.player === "string" ? saved.player : initial.player,
+          opponent: typeof saved.opponent === "string" ? saved.opponent : initial.opponent,
+          playerPartner: typeof saved.playerPartner === "string" ? saved.playerPartner : "",
+          opponentPartner: typeof saved.opponentPartner === "string" ? saved.opponentPartner : "",
+          matchType: ["singles", "doubles"].includes(saved.matchType) ? saved.matchType : "singles",
+          matchLength,
+          playerSide: ["left", "right"].includes(saved.playerSide) ? saved.playerSide : "left",
+          profileDefaultsVersion: PROFILE_DEFAULTS_VERSION,
+          profiles,
+          sets,
+          impression: typeof saved.impression === "string" ? saved.impression : "",
+          goodPoints: typeof saved.goodPoints === "string" ? saved.goodPoints : "",
+          badPoints: typeof saved.badPoints === "string" ? saved.badPoints : ""
+        };
+      } catch {
+        return defaultState();
+      }
+    }
+
+    function createMatchId() {
+      return `match-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+    }
+
+    function loadMatchStore() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+        if (saved?.format === "rally-match-list-v1" && Array.isArray(saved.matches)) {
+          const matches = saved.matches.filter(match => match && typeof match.id === "string").map(match => ({
+            id: match.id,
+            data: normalizeState(match.data)
+          }));
+          if (matches.length) {
+            const activeMatchId = matches.some(match => match.id === saved.activeMatchId) ? saved.activeMatchId : matches[0].id;
+            return { format: "rally-match-list-v1", activeMatchId, matches };
+          }
+        }
+        return {
+          format: "rally-match-list-v1",
+          activeMatchId: "match-legacy",
+          matches: [{ id: "match-legacy", data: normalizeState(saved) }]
+        };
+      } catch {
+        return {
+          format: "rally-match-list-v1",
+          activeMatchId: "match-initial",
+          matches: [{ id: "match-initial", data: defaultState() }]
+        };
+      }
+    }
+
+    function persist() {
+      const activeMatch = matchStore.matches.find(match => match.id === activeMatchId);
+      if (activeMatch) activeMatch.data = state;
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({
+          format: matchStore.format,
+          activeMatchId,
+          matches: matchStore.matches
+        }));
+      } catch { showToast("端末への自動保存ができませんでした"); }
+    }
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
+    }
+
+    function getLeftSide() {
+      return state.playerSide === "left" ? "me" : "opponent";
+    }
+
+    function getSidePlayers(side, matchState = state) {
+      const players = side === "me"
+        ? [{ name: matchState.player, profile: matchState.profiles.player }]
+        : [{ name: matchState.opponent, profile: matchState.profiles.opponent }];
+      if (matchState.matchType === "doubles") {
+        players.push(side === "me"
+          ? { name: matchState.playerPartner, profile: matchState.profiles.playerPartner }
+          : { name: matchState.opponentPartner, profile: matchState.profiles.opponentPartner });
+      }
+      return players;
+    }
+
+    function getSideName(side, matchState = state) {
+      const players = getSidePlayers(side, matchState).map(player => player.name.trim()).filter(Boolean);
+      return players.join(" & ") || (side === "me" ? "自分" : "対戦者");
+    }
+
+    function hasCompleteNames(matchState) {
+      return Boolean(matchState.player.trim() && matchState.opponent.trim()
+        && (matchState.matchType !== "doubles" || matchState.playerPartner.trim() && matchState.opponentPartner.trim()));
+    }
+
+    function isMatchReady(matchState) {
+      return Boolean(getProgress(matchState).winner && hasCompleteNames(matchState));
+    }
+
+    function renderProfileSettings() {
+      const groups = [
+        { key: "player", label: "自分" },
+        { key: "opponent", label: "対戦者" },
+        { key: "playerPartner", label: "自分のペア", partner: true },
+        { key: "opponentPartner", label: "対戦者のペア", partner: true }
+      ];
+      elements.profileSettings.replaceChildren();
+      for (const group of groups) {
+        const fieldset = document.createElement("fieldset");
+        fieldset.className = "profile-group";
+        fieldset.dataset.profileGroup = group.key;
+        fieldset.innerHTML = `
+          <legend class="profile-heading">${group.label}の用具・利き腕</legend>
+          <div class="profile-fields">
+            <label class="profile-field">
+              <span class="profile-label">利き腕</span>
+              <select class="profile-select" data-profile-control data-profile-player="${group.key}" data-profile-key="hand">
+                <option value="">未選択</option><option value="left">左</option><option value="right">右</option>
+              </select>
+            </label>
+            <label class="profile-field">
+              <span class="profile-label">ラケット</span>
+              <select class="profile-select" data-profile-control data-profile-player="${group.key}" data-profile-key="racket">
+                <option value="">未選択</option><option value="pen">ペン</option><option value="shake">シェーク</option><option value="other">他</option>
+              </select>
+            </label>
+            <label class="profile-other-wrap profile-field" hidden>
+              <span class="profile-label">ラケット補足</span>
+              <input class="profile-other" type="text" maxlength="40" placeholder="任意" data-profile-control data-profile-player="${group.key}" data-profile-key="racketOther">
+            </label>
+            <div class="profile-rubbers">
+              <label class="profile-field">
+                <span class="profile-label">フォア面</span>
+                <select class="profile-select" data-profile-control data-profile-player="${group.key}" data-profile-key="forehand">
+                  <option value="">未選択</option><option value="裏">裏</option><option value="表">表</option><option value="粒">粒</option><option value="アンチ">アンチ</option>
+                </select>
+              </label>
+              <label class="profile-field">
+                <span class="profile-label">バック面</span>
+                <select class="profile-select" data-profile-control data-profile-player="${group.key}" data-profile-key="backhand">
+                  <option value="">未選択</option><option value="裏">裏</option><option value="表">表</option><option value="粒">粒</option><option value="アンチ">アンチ</option>
+                </select>
+              </label>
+            </div>
+          </div>`;
+        elements.profileSettings.append(fieldset);
+      }
+    }
+
+    function renderMatchTabs() {
+      elements.matchTabs.replaceChildren();
+      matchStore.matches.forEach((match, index) => {
+        const button = document.createElement("button");
+        button.className = "match-tab";
+        button.type = "button";
+        button.setAttribute("role", "tab");
+        button.dataset.matchId = match.id;
+        button.setAttribute("aria-selected", String(match.id === activeMatchId));
+        button.textContent = match.data.opponent.trim() || `試合 ${index + 1}`;
+        button.title = button.textContent;
+        elements.matchTabs.append(button);
+      });
+      elements.deleteMatch.disabled = matchStore.matches.length <= 1;
+    }
+
+    function updateMatchTypeFields() {
+      const isDoubles = state.matchType === "doubles";
+      elements.partnerPlayers.hidden = !isDoubles;
+      elements.profileSettings.querySelectorAll("[data-profile-group]").forEach(group => {
+        group.hidden = group.dataset.profileGroup.endsWith("Partner") && !isDoubles;
+      });
+      elements.playerNameLabel.textContent = isDoubles ? "自分側の1人目" : "自分";
+      elements.opponentNameLabel.textContent = isDoubles ? "対戦者側の1人目" : "対戦者";
+      elements.playerPartnerLabel.textContent = "自分側の2人目";
+      elements.opponentPartnerLabel.textContent = "対戦者側の2人目";
+      elements.playerPartner.value = state.playerPartner;
+      elements.opponentPartner.value = state.opponentPartner;
+      document.querySelector(`input[name="matchType"][value="${state.matchType}"]`).checked = true;
+      updateProfileOtherFields();
+    }
+
+    function switchMatch(matchId) {
+      if (matchId === activeMatchId) return;
+      disarmDelete();
+      const nextMatch = matchStore.matches.find(match => match.id === matchId);
+      if (!nextMatch) return;
+      persist();
+      activeMatchId = matchId;
+      state = nextMatch.data;
+      generatedText = "";
+      syncForm();
+      clearOutput();
+    }
+
+    function addMatch() {
+      disarmDelete();
+      persist();
+      const match = { id: createMatchId(), data: defaultState() };
+      matchStore.matches.push(match);
+      activeMatchId = match.id;
+      state = match.data;
+      generatedText = "";
+      persist();
+      syncForm();
+      clearOutput();
+      elements.opponent.focus();
+    }
+
+    function deleteMatch() {
+      if (matchStore.matches.length <= 1) return;
+      if (!elements.deleteMatch.dataset.confirming) {
+        elements.deleteMatch.dataset.confirming = "true";
+        elements.deleteMatch.textContent = "削除を確定";
+        showToast("もう一度押すと、この試合を削除します");
+        deleteConfirmTimer = setTimeout(disarmDelete, 4000);
+        return;
+      }
+      const activeIndex = matchStore.matches.findIndex(match => match.id === activeMatchId);
+      disarmDelete();
+      matchStore.matches.splice(activeIndex, 1);
+      const nextMatch = matchStore.matches[Math.min(activeIndex, matchStore.matches.length - 1)];
+      activeMatchId = nextMatch.id;
+      state = nextMatch.data;
+      generatedText = "";
+      persist();
+      syncForm();
+      clearOutput();
+    }
+
+    function disarmDelete() {
+      clearTimeout(deleteConfirmTimer);
+      deleteConfirmTimer = undefined;
+      delete elements.deleteMatch.dataset.confirming;
+      elements.deleteMatch.textContent = "この試合を削除";
+    }
+
+    function renderSetRows() {
+      elements.setList.replaceChildren();
+      const leftSide = getLeftSide();
+      const rightSide = leftSide === "me" ? "opponent" : "me";
+      for (let index = 0; index < state.matchLength; index += 1) {
+        const set = state.sets[index];
+        const row = document.createElement("div");
+        row.className = "set-row";
+        row.dataset.index = String(index);
+        row.innerHTML = `
+          <span class="set-number">SET ${index + 1}</span>
+          <div class="score-side" data-side="${leftSide}">
+            <button class="winner-button" type="button" data-winner="${leftSide}" aria-label="${index + 1}セット目の勝者を${escapeHtml(getSideName(leftSide))}にする" aria-pressed="${set.winner === leftSide}">${escapeHtml(getSideName(leftSide))}</button>
+            <output class="winner-score" data-score-side="${leftSide}" aria-label="${index + 1}セット目、${escapeHtml(getSideName(leftSide))}の点数">-</output>
+            <input class="score-input" data-score-side="${leftSide}" type="number" min="0" max="99" step="1" inputmode="numeric" aria-label="${index + 1}セット目、${escapeHtml(getSideName(leftSide))}の点数" disabled>
+          </div>
+          <span class="score-dash" aria-hidden="true">-</span>
+          <div class="score-side" data-side="${rightSide}">
+            <button class="winner-button" type="button" data-winner="${rightSide}" aria-label="${index + 1}セット目の勝者を${escapeHtml(getSideName(rightSide))}にする" aria-pressed="${set.winner === rightSide}">${escapeHtml(getSideName(rightSide))}</button>
+            <output class="winner-score" data-score-side="${rightSide}" aria-label="${index + 1}セット目、${escapeHtml(getSideName(rightSide))}の点数">-</output>
+            <input class="score-input" data-score-side="${rightSide}" type="number" min="0" max="99" step="1" inputmode="numeric" aria-label="${index + 1}セット目、${escapeHtml(getSideName(rightSide))}の点数" disabled>
+          </div>`;
+        elements.setList.append(row);
+      }
+      updateProgress();
+    }
+
+    function winnerScore(loserScore) {
+      return loserScore < 10 ? 11 : loserScore + 2;
+    }
+
+    function getProgress(matchState = state) {
+      const target = Math.ceil(matchState.matchLength / 2);
+      const wins = { me: 0, opponent: 0 };
+      const results = [];
+      let winner = "";
+      let activeIndex = -1;
+      for (let index = 0; index < matchState.matchLength; index += 1) {
+        const set = matchState.sets[index];
+        if (winner) break;
+        if (!set.winner) { activeIndex = index; break; }
+        const score = set.loserScore === "" ? NaN : Number(set.loserScore);
+        if (!Number.isInteger(score) || score < 0 || score > 99) {
+          activeIndex = index;
+          break;
+        }
+        const winningScore = winnerScore(score);
+        wins[set.winner] += 1;
+        results.push({ winner: set.winner, winningScore, losingScore: score });
+        if (wins[set.winner] >= target) winner = set.winner;
+        else if (index + 1 < matchState.matchLength) activeIndex = index + 1;
+      }
+      return { target, wins, results, winner, activeIndex };
+    }
+
+    function updateProgress() {
+      const progress = getProgress();
+      const rows = [...elements.setList.querySelectorAll(".set-row")];
+      rows.forEach((row, index) => {
+        const set = state.sets[index];
+        const isComplete = progress.results[index] !== undefined;
+        const enabled = !progress.winner && (index === progress.activeIndex || isComplete);
+        row.classList.toggle("is-complete", isComplete);
+        row.classList.toggle("is-active", !isComplete && index === progress.activeIndex);
+        row.classList.toggle("is-disabled", !isComplete && index !== progress.activeIndex);
+        row.querySelectorAll(".winner-button").forEach(button => {
+          button.disabled = !enabled;
+          button.setAttribute("aria-pressed", String(button.dataset.winner === set.winner));
+        });
+        const loserSide = set.winner === "me" ? "opponent" : "me";
+        const result = progress.results[index];
+        const rawScore = set.loserScore === "" ? NaN : Number(set.loserScore);
+        const validScore = Number.isInteger(rawScore) && rawScore >= 0 && rawScore <= 99;
+        row.querySelectorAll(".score-side").forEach(sideElement => {
+          const side = sideElement.dataset.side;
+          const sideName = getSideName(side);
+          const isWinner = set.winner === side;
+          const isLoser = set.winner && side === loserSide;
+          sideElement.querySelector(".winner-button").textContent = sideName;
+          sideElement.querySelector(".winner-button").setAttribute("aria-label", `${index + 1}セット目の勝者を${sideName}にする`);
+          const autoScore = sideElement.querySelector(".winner-score");
+          const scoreInput = sideElement.querySelector(".score-input");
+          autoScore.setAttribute("aria-label", `${index + 1}セット目、${sideName}の点数`);
+          scoreInput.setAttribute("aria-label", `${index + 1}セット目、${sideName}の点数`);
+          autoScore.textContent = isWinner && validScore ? String(winnerScore(rawScore)) : "-";
+          autoScore.classList.toggle("has-value", Boolean(isWinner && validScore));
+          autoScore.hidden = Boolean(isLoser);
+          scoreInput.hidden = !isLoser;
+          scoreInput.disabled = !isLoser || index !== progress.activeIndex && !isComplete || Boolean(progress.winner && !isComplete);
+          scoreInput.value = isLoser ? set.loserScore : "";
+        });
+        row.dataset.score = result ? `${result.winningScore}-${result.losingScore}` : "";
+      });
+
+      const incompleteMatches = matchStore.matches.filter(match => !isMatchReady(match.id === activeMatchId ? state : match.data)).length;
+      const allMatchesReady = incompleteMatches === 0;
+      elements.generate.disabled = !allMatchesReady;
+      elements.ready.classList.toggle("is-ready", !elements.generate.disabled);
+      elements.outputCaption.textContent = allMatchesReady
+        ? `${matchStore.matches.length}試合分をまとめて出力できます。`
+        : `全${matchStore.matches.length}試合中、未完了が${incompleteMatches}試合あります。`;
+      elements.status.classList.toggle("is-win", Boolean(progress.winner));
+      elements.status.classList.toggle("is-loss", false);
+      if (progress.winner) {
+        elements.status.textContent = `${getSideName(progress.winner)} の勝利 · ${progress.wins.me} - ${progress.wins.opponent}`;
+      } else if (progress.activeIndex === -1) {
+        elements.status.textContent = "セットの入力を確認してください。";
+      } else {
+        elements.status.textContent = `あと ${progress.target - Math.max(progress.wins.me, progress.wins.opponent)} セットで勝利です · ${progress.wins.me} - ${progress.wins.opponent}`;
+      }
+      if (generatedText && !allMatchesReady) clearOutput();
+      return progress;
+    }
+
+    function markdownCell(value) {
+      return String(value).replace(/\|/g, "\\|").replace(/[\r\n]+/g, " ").trim();
+    }
+
+    function formatNote(value) {
+      return value.trim() || " ";
+    }
+
+    function formatPlayerProfile(name, profile) {
+      const details = [];
+      const hand = profile.hand ? profile.hand === "left" ? "左" : "右" : "";
+      const racket = profile.racket === "pen" ? "ペン" : profile.racket === "shake" ? "シェーク" : profile.racket === "other" ? `他${profile.racketOther.trim() ? `（${markdownCell(profile.racketOther)}）` : ""}` : "";
+      if (hand || racket) details.push(`${hand}${racket}`);
+      if (profile.forehand || profile.backhand) details.push(`${profile.forehand || "未設定"}・${profile.backhand || "未設定"}`);
+      return details.length ? `${markdownCell(name)}：${details.join("、")}` : "";
+    }
+
+    function makeMarkdown(progress, matchState = state) {
+      const player = markdownCell(getSideName("me", matchState));
+      const opponent = markdownCell(getSideName("opponent", matchState));
+      const isWin = progress.winner === "me";
+      const topName = isWin ? `<font color="#ff0000"><b>${escapeHtml(player)}</b></font>` : escapeHtml(opponent);
+      const bottomName = isWin ? escapeHtml(opponent) : `<font color="#0000ff"><b>${escapeHtml(player)}</b></font>`;
+      const scoreText = progress.results.map(result => `${result.winningScore}-${result.losingScore}`).join("<br>");
+      const heading = "| WIN | Set | Score | Set | LOSE |";
+      const separator = "| --- | --- | --- | --- | --- |";
+      const resultRow = `| ${topName} | ${isWin ? progress.wins.me : progress.wins.opponent} | ${scoreText} | ${isWin ? progress.wins.opponent : progress.wins.me} | ${bottomName} |`;
+      const profileLines = [
+        ...getSidePlayers("me", matchState).map(member => formatPlayerProfile(member.name, member.profile)),
+        ...getSidePlayers("opponent", matchState).map(member => formatPlayerProfile(member.name, member.profile))
+      ].filter(Boolean);
+      const profileBlock = profileLines.length ? `\n\n**選手情報**\n${profileLines.join("<br>")}` : "";
+      return `**${opponent}**${profileBlock}\n\n${heading}\n${separator}\n${resultRow}\n\n**感想**\n${formatNote(matchState.impression)}\n\n**良かった点**\n${formatNote(matchState.goodPoints)}\n\n**悪かった点**\n${formatNote(matchState.badPoints)}`;
+    }
+
+    function clearOutput() {
+      generatedText = "";
+      elements.output.value = "";
+      elements.copy.disabled = true;
+      elements.download.disabled = true;
+    }
+
+    function showToast(message) {
+      document.querySelector(".toast")?.remove();
+      const toast = document.createElement("div");
+      toast.className = "toast";
+      toast.setAttribute("role", "status");
+      toast.textContent = message;
+      document.body.append(toast);
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.remove(), 2400);
+    }
+
+    function syncForm() {
+      elements.player.value = state.player;
+      elements.opponent.value = state.opponent;
+      elements.playerPartner.value = state.playerPartner;
+      elements.opponentPartner.value = state.opponentPartner;
+      document.querySelector(`input[name="matchType"][value="${state.matchType}"]`).checked = true;
+      document.querySelector(`input[name="matchLength"][value="${state.matchLength}"]`).checked = true;
+      document.querySelector(`input[name="playerSide"][value="${state.playerSide}"]`).checked = true;
+      renderProfileSettings();
+      updateMatchTypeFields();
+      document.querySelectorAll("[data-profile-control]").forEach(control => {
+        const profile = state.profiles[control.dataset.profilePlayer];
+        const key = control.dataset.profileKey;
+        control.value = profile[key];
+      });
+      updateProfileOtherFields();
+      for (const field of noteFields) document.querySelector(`#${field}`).value = state[field];
+      renderSetRows();
+      renderMatchTabs();
+    }
+
+    function updateProfileOtherFields() {
+      document.querySelectorAll("[data-profile-group]").forEach(group => {
+        const profile = state.profiles[group.dataset.profileGroup];
+        group.querySelector(".profile-other-wrap").hidden = profile.racket !== "other";
+      });
+    }
+
+    elements.setList.addEventListener("click", event => {
+      const button = event.target.closest(".winner-button");
+      if (!button || button.disabled) return;
+      const index = Number(button.closest(".set-row").dataset.index);
+      state.sets[index].winner = button.dataset.winner;
+      state.sets[index].loserScore = "";
+      const row = button.closest(".set-row");
+      persist();
+      updateProgress();
+      row.querySelector(`.score-input[data-score-side="${button.dataset.winner === "me" ? "opponent" : "me"}"]`).focus();
+    });
+
+    elements.setList.addEventListener("input", event => {
+      if (!event.target.matches(".score-input")) return;
+      const index = Number(event.target.closest(".set-row").dataset.index);
+      state.sets[index].loserScore = event.target.value;
+      persist();
+      updateProgress();
+    });
+
+    elements.player.addEventListener("input", () => {
+      state.player = elements.player.value;
+      persist();
+      updateProgress();
+      clearOutput();
+    });
+
+    elements.opponent.addEventListener("input", () => {
+      state.opponent = elements.opponent.value;
+      persist();
+      const selection = { start: elements.opponent.selectionStart, end: elements.opponent.selectionEnd };
+      renderSetRows();
+      renderMatchTabs();
+      elements.opponent.focus();
+      elements.opponent.setSelectionRange(selection.start, selection.end);
+      clearOutput();
+    });
+
+    elements.playerPartner.addEventListener("input", () => {
+      state.playerPartner = elements.playerPartner.value;
+      persist();
+      updateProgress();
+      clearOutput();
+    });
+
+    elements.opponentPartner.addEventListener("input", () => {
+      state.opponentPartner = elements.opponentPartner.value;
+      persist();
+      updateProgress();
+      clearOutput();
+    });
+
+    elements.matchTabs.addEventListener("click", event => {
+      const tab = event.target.closest("[data-match-id]");
+      if (tab) switchMatch(tab.dataset.matchId);
+    });
+
+    elements.newMatch.addEventListener("click", addMatch);
+    elements.deleteMatch.addEventListener("click", deleteMatch);
+    elements.saveMatch.addEventListener("click", () => {
+      persist();
+      showToast("この試合を一時保存しました");
+    });
+
+    document.querySelectorAll('input[name="matchType"]').forEach(input => {
+      input.addEventListener("change", () => {
+        state.matchType = input.value;
+        persist();
+        updateMatchTypeFields();
+        renderSetRows();
+        clearOutput();
+      });
+    });
+
+    document.querySelectorAll('input[name="matchLength"]').forEach(input => {
+      input.addEventListener("change", () => {
+        state.matchLength = Number(input.value);
+        persist();
+        renderSetRows();
+        clearOutput();
+      });
+    });
+
+    document.querySelectorAll('input[name="playerSide"]').forEach(input => {
+      input.addEventListener("change", () => {
+        state.playerSide = input.value;
+        persist();
+        renderSetRows();
+        clearOutput();
+      });
+    });
+
+    function updateProfileFromEvent(event) {
+      const control = event.target.closest("[data-profile-control]");
+      if (!control || !elements.profileSettings.contains(control)) return;
+      const profile = state.profiles[control.dataset.profilePlayer];
+      const key = control.dataset.profileKey;
+      profile[key] = control.value;
+      persist();
+      if (key === "racket") updateProfileOtherFields();
+      clearOutput();
+    }
+
+    elements.profileSettings.addEventListener("input", updateProfileFromEvent);
+    elements.profileSettings.addEventListener("change", updateProfileFromEvent);
+
+    for (const field of noteFields) {
+      document.querySelector(`#${field}`).addEventListener("input", event => {
+        state[field] = event.target.value;
+        persist();
+        clearOutput();
+      });
+    }
+
+    elements.generate.addEventListener("click", () => {
+      updateProgress();
+      if (elements.generate.disabled) return;
+      persist();
+      generatedText = matchStore.matches.map(match => {
+        const matchState = match.id === activeMatchId ? state : match.data;
+        return makeMarkdown(getProgress(matchState), matchState);
+      }).join("\n\n---\n\n");
+      elements.output.value = generatedText;
+      elements.copy.disabled = false;
+      elements.download.disabled = false;
+      elements.output.focus();
+    });
+
+    elements.copy.addEventListener("click", async () => {
+      if (!generatedText) return;
+      try {
+        await navigator.clipboard.writeText(generatedText);
+      } catch {
+        elements.output.focus();
+        elements.output.select();
+        document.execCommand("copy");
+      }
+      showToast("Markdownをコピーしました");
+    });
+
+    elements.download.addEventListener("click", () => {
+      if (!generatedText) return;
+      const blob = new Blob([generatedText], { type: "text/markdown;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      const safeName = "卓球試合記録";
+      const date = new Date().toISOString().slice(0, 10);
+      anchor.href = url;
+      anchor.download = `${date}-${safeName}.md`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    });
+
+    elements.reset.addEventListener("click", () => {
+      state = defaultState();
+      generatedText = "";
+      persist();
+      syncForm();
+      clearOutput();
+      elements.opponent.focus();
+    });
+
+    syncForm();
+  </script>
+</body>
+</html>
